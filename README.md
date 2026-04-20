@@ -2,7 +2,7 @@
 
 Self-hosted server monitoring with ML anomaly detection, multi-server support, historical Q&A, and an AI chat assistant.
 
-[![CI](https://github.com/MDC-creator/quickpalm_analyser/actions/workflows/ci.yml/badge.svg)](https://github.com/MDC-creator/quickpalm_analyser/actions)
+[![CI](https://github.com/MDC-creator/quickpalm-analyser/actions/workflows/ci.yml/badge.svg)](https://github.com/MDC-creator/quickpalm-analyser/actions)
 
 ---
 
@@ -51,8 +51,8 @@ newgrp docker
 
 **Step 3 — Clone and install**
 ```bash
-git clone https://github.com/MDC-creator/quickpalm_analyser.git
-cd quickpalm_analyser
+git clone https://github.com/MDC-creator/quickpalm-analyser.git
+cd quickpalm-analyser
 bash install.sh
 ```
 
@@ -69,8 +69,8 @@ bash install.sh
 
 **Step 3 — Open Git Bash and run**
 ```bash
-git clone https://github.com/MDC-creator/quickpalm_analyser.git
-cd quickpalm_analyser
+git clone https://github.com/MDC-creator/quickpalm-analyser.git
+cd quickpalm-analyser
 bash install.sh
 ```
 
@@ -84,7 +84,7 @@ bash install.sh
 
 ```bash
 # Navigate to the project folder first — always required
-cd quickpalm_analyser   # or wherever you cloned it
+cd quickpalm-analyser   # or wherever you cloned it
 
 # Start all services
 docker compose up -d
@@ -93,7 +93,7 @@ docker compose up -d
 docker compose down
 ```
 
-On Windows, run these commands in **Git Bash** from inside the `quickpalm_analyser` folder.
+On Windows, run these commands in **Git Bash** from inside the `quickpalm-analyser` folder.
 
 ---
 
@@ -135,8 +135,8 @@ To monitor additional remote servers:
 
 1. Install and run the collector on the remote machine:
 ```bash
-git clone https://github.com/MDC-creator/quickpalm_analyser.git
-cd quickpalm_analyser
+git clone https://github.com/MDC-creator/quickpalm-analyser.git
+cd quickpalm-analyser
 docker compose up -d collector
 ```
 
