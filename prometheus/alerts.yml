@@ -1,0 +1,84 @@
+groups:
+  - name: quickpalm_alerts
+    rules:
+
+      - alert: HighCPU
+        expr: node_cpu_percent > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU usage high"
+          description: "CPU has been above 85% for 2 minutes (current: {{ $value | printf \"%.1f\" }}%)"
+
+      - alert: CriticalCPU
+        expr: node_cpu_percent > 95
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: CPU nearly maxed out"
+          description: "CPU is at {{ $value | printf \"%.1f\" }}% — server overloaded"
+
+      - alert: HighRAM
+        expr: node_ram_percent > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAM usage high"
+          description: "RAM is at {{ $value | printf \"%.1f\" }}%"
+
+      - alert: CriticalRAM
+        expr: node_ram_percent > 95
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: RAM nearly full"
+          description: "RAM is at {{ $value | printf \"%.1f\" }}% — OOM risk"
+
+      - alert: DiskWarning
+        expr: node_disk_percent > 75
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk running low"
+          description: "Disk is at {{ $value | printf \"%.1f\" }}%"
+
+      - alert: DiskCritical
+        expr: node_disk_percent > 90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: Disk almost full"
+          description: "Disk is at {{ $value | printf \"%.1f\" }}%"
+
+      - alert: AnomalyDetected
+        expr: ml_anomaly_detected == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "ML anomaly detected"
+          description: "Unusual server behavior detected (score: {{ $value }})"
+
+      - alert: DiskFullSoon
+        expr: ml_disk_full_in_days >= 0 and ml_disk_full_in_days < 7
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk full in {{ $value }} days"
+          description: "ML forecast: disk will reach 95% in ~{{ $value }} days"
+
+      - alert: CollectorDown
+        expr: up{job="quickpalm-collector"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Collector unreachable"
+          description: "The metrics collector is not responding"

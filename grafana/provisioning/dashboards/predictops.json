@@ -1,0 +1,163 @@
+{
+  "title": "QuickPalm Analyser — Server Overview",
+  "uid": "predictops-main",
+  "schemaVersion": 38,
+  "refresh": "5s",
+  "time": { "from": "now-30m", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "label": "Server",
+        "type": "query",
+        "datasource": "Prometheus",
+        "query": "label_values(node_cpu_percent, instance)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": false,
+        "hide": 0,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1, "type": "gauge", "title": "CPU %",
+      "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0, "max": 100, "unit": "percent",
+          "thresholds": { "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 60 },
+            { "color": "red", "value": 85 }
+          ]}
+        }
+      },
+      "targets": [{ "expr": "node_cpu_percent{instance=~\"$instance\"}", "datasource": "Prometheus" }]
+    },
+    {
+      "id": 2, "type": "gauge", "title": "RAM %",
+      "gridPos": { "x": 6, "y": 0, "w": 6, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0, "max": 100, "unit": "percent",
+          "thresholds": { "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 70 },
+            { "color": "red", "value": 90 }
+          ]}
+        }
+      },
+      "targets": [{ "expr": "node_ram_percent{instance=~\"$instance\"}", "datasource": "Prometheus" }]
+    },
+    {
+      "id": 3, "type": "gauge", "title": "Disk %",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0, "max": 100, "unit": "percent",
+          "thresholds": { "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 70 },
+            { "color": "red", "value": 90 }
+          ]}
+        }
+      },
+      "targets": [{ "expr": "node_disk_percent{instance=~\"$instance\"}", "datasource": "Prometheus" }]
+    },
+    {
+      "id": 4, "type": "stat", "title": "Disk Free (GB)",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 4 },
+      "fieldConfig": { "defaults": { "unit": "none" } },
+      "targets": [{ "expr": "node_disk_free_gb{instance=~\"$instance\"}", "datasource": "Prometheus" }]
+    },
+    {
+      "id": 8, "type": "stat", "title": "ML — Anomaly Status",
+      "gridPos": { "x": 0, "y": 4, "w": 6, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "Normal", "color": "green" }, "1": { "text": "ANOMALY", "color": "red" } } }
+          ],
+          "thresholds": { "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] }
+        }
+      },
+      "options": { "colorMode": "background" },
+      "targets": [{ "expr": "ml_anomaly_detected{instance=~\"$instance\"}", "datasource": "Prometheus" }]
+    },
+    {
+      "id": 9, "type": "stat", "title": "ML — Anomaly Score",
+      "gridPos": { "x": 6, "y": 4, "w": 6, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 4,
+          "thresholds": { "steps": [{ "color": "red", "value": null }, { "color": "yellow", "value": -0.1 }, { "color": "green", "value": 0 }] }
+        }
+      },
+      "targets": [{ "expr": "ml_anomaly_score{instance=~\"$instance\"}", "datasource": "Prometheus" }]
+    },
+    {
+      "id": 10, "type": "stat", "title": "Disk Full In (Days)",
+      "gridPos": { "x": 12, "y": 4, "w": 6, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [{ "type": "value", "options": { "-1": { "text": "No Trend" } } }],
+          "thresholds": { "steps": [
+            { "color": "red", "value": null },
+            { "color": "orange", "value": 3 },
+            { "color": "yellow", "value": 7 },
+            { "color": "green", "value": 14 }
+          ]}
+        }
+      },
+      "options": { "colorMode": "background" },
+      "targets": [{ "expr": "ml_disk_full_in_days{instance=~\"$instance\"}", "datasource": "Prometheus" }]
+    },
+    {
+      "id": 11, "type": "stat", "title": "ML Runs",
+      "gridPos": { "x": 18, "y": 4, "w": 6, "h": 4 },
+      "fieldConfig": { "defaults": { "unit": "none" } },
+      "targets": [{ "expr": "ml_runs_total", "datasource": "Prometheus" }]
+    },
+    {
+      "id": 5, "type": "timeseries", "title": "CPU & RAM History",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "fieldConfig": { "defaults": { "min": 0, "max": 100, "unit": "percent" } },
+      "targets": [
+        { "expr": "node_cpu_percent{instance=~\"$instance\"}", "legendFormat": "CPU % — {{instance}}", "datasource": "Prometheus" },
+        { "expr": "node_ram_percent{instance=~\"$instance\"}", "legendFormat": "RAM % — {{instance}}", "datasource": "Prometheus" }
+      ]
+    },
+    {
+      "id": 12, "type": "timeseries", "title": "ML Anomaly Score History",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "thresholdsStyle": { "mode": "line" } },
+          "thresholds": { "steps": [{ "color": "red", "value": -0.1 }, { "color": "green", "value": 0 }] }
+        }
+      },
+      "targets": [
+        { "expr": "ml_anomaly_score{instance=~\"$instance\"}", "legendFormat": "Anomaly Score — {{instance}}", "datasource": "Prometheus" }
+      ]
+    },
+    {
+      "id": 6, "type": "timeseries", "title": "Network (MB Total)",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 6 },
+      "targets": [
+        { "expr": "node_net_sent_mb_total{instance=~\"$instance\"}", "legendFormat": "Sent MB — {{instance}}", "datasource": "Prometheus" },
+        { "expr": "node_net_recv_mb_total{instance=~\"$instance\"}", "legendFormat": "Received MB — {{instance}}", "datasource": "Prometheus" }
+      ]
+    },
+    {
+      "id": 7, "type": "timeseries", "title": "Load Average",
+      "gridPos": { "x": 0, "y": 22, "w": 24, "h": 6 },
+      "targets": [
+        { "expr": "node_load_1m{instance=~\"$instance\"}", "legendFormat": "1m — {{instance}}", "datasource": "Prometheus" },
+        { "expr": "node_load_5m{instance=~\"$instance\"}", "legendFormat": "5m — {{instance}}", "datasource": "Prometheus" }
+      ]
+    }
+  ]
+}

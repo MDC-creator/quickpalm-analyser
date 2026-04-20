@@ -1,0 +1,98 @@
+---
+- name: PredictOps Server Setup
+  hosts: predictops
+  become: true
+
+  vars:
+    project_dir: /opt/predictops
+    github_repo: "https://github.com/DEIN-USERNAME/predictops.git"
+    ollama_model: "llama3.2:1b"
+
+  tasks:
+
+    # ── System ────────────────────────────────────────────────────────────
+    - name: System Pakete aktualisieren
+      apt:
+        update_cache: yes
+        upgrade: dist
+
+    - name: Benötigte Pakete installieren
+      apt:
+        name: [git, curl, ufw]
+        state: present
+
+    # ── Firewall ──────────────────────────────────────────────────────────
+    - name: UFW — SSH erlauben
+      ufw:
+        rule: allow
+        port: "22"
+
+    - name: UFW — HTTP erlauben
+      ufw:
+        rule: allow
+        port: "80"
+
+    - name: UFW — HTTPS erlauben
+      ufw:
+        rule: allow
+        port: "443"
+
+    - name: UFW aktivieren
+      ufw:
+        state: enabled
+        policy: deny
+
+    # ── Projekt deployen ──────────────────────────────────────────────────
+    - name: Projektverzeichnis erstellen
+      file:
+        path: "{{ project_dir }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Repo klonen / aktualisieren
+      git:
+        repo: "{{ github_repo }}"
+        dest: "{{ project_dir }}"
+        version: main
+        force: yes
+      become_user: ubuntu
+
+    # ── Docker Services starten ───────────────────────────────────────────
+    - name: Docker Images bauen
+      shell: docker compose build
+      args:
+        chdir: "{{ project_dir }}"
+      become_user: ubuntu
+
+    - name: Alle Services starten
+      shell: docker compose up -d
+      args:
+        chdir: "{{ project_dir }}"
+      become_user: ubuntu
+
+    # ── Ollama Modell laden ───────────────────────────────────────────────
+    - name: Warten bis Ollama bereit ist
+      wait_for:
+        host: localhost
+        port: 11434
+        delay: 10
+        timeout: 120
+
+    - name: LLM Modell herunterladen
+      shell: "docker exec predictops-ollama ollama pull {{ ollama_model }}"
+      become_user: ubuntu
+      ignore_errors: yes
+
+    # ── Health Check ──────────────────────────────────────────────────────
+    - name: Chat Interface erreichbar?
+      uri:
+        url: "http://localhost/status"
+        status_code: 200
+      register: health
+      retries: 5
+      delay: 5
+
+    - name: Deployment Status
+      debug:
+        msg: "PredictOps läuft! Chat: http://{{ ansible_host }}"

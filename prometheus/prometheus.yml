@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+rule_files:
+  - "alerts.yml"
+
+scrape_configs:
+  # Collector targets — edit config/targets.json to add remote servers
+  - job_name: "quickpalm-collector"
+    file_sd_configs:
+      - files: ['/etc/prometheus/sd/targets.json']
+        refresh_interval: 30s
+
+  # ML service — honor_labels lets instance labels from metrics take priority
+  - job_name: "quickpalm-ml"
+    honor_labels: true
+    static_configs:
+      - targets: ["ml:8001"]

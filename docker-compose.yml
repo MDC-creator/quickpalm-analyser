@@ -1,0 +1,78 @@
+services:
+
+  collector:
+    build: ./collector
+    container_name: quickpalm-collector
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+
+  ml:
+    build: ./ml
+    container_name: quickpalm-ml
+    restart: unless-stopped
+    ports:
+      - "8001:8001"
+    depends_on:
+      - prometheus
+
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: quickpalm-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - ./config:/etc/prometheus/sd:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: quickpalm-grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=quickpalm
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  chat:
+    build: ./chat
+    container_name: quickpalm-chat
+    restart: unless-stopped
+    environment:
+      - PROMETHEUS_URL=http://prometheus:9090
+      - OLLAMA_URL=http://host-gateway:11434
+      - OLLAMA_MODEL=llama3.2:1b
+    extra_hosts:
+      - "host-gateway:host-gateway"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - prometheus
+
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: quickpalm-nginx
+    restart: unless-stopped
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - chat
+      - grafana
+
+volumes:
+  prometheus_data:
+  grafana_data:

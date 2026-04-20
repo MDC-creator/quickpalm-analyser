@@ -1,0 +1,8 @@
+[
+  {
+    "targets": ["collector:8000"],
+    "labels": {
+      "env": "local"
+    }
+  }
+]
