@@ -104,8 +104,8 @@ After `install.sh` finishes:
 | Service | URL | Login |
 |---------|-----|-------|
 | Chat Interface | http://localhost | — |
-| Grafana Dashboard | http://localhost/grafana | `admin` / `quickpalm` |
-| Prometheus | http://localhost/prometheus | — |
+| Grafana Dashboard | http://localhost:3000 | `admin` / `quickpalm` |
+| Prometheus | http://localhost:9090 | — |
 
 ---
 
