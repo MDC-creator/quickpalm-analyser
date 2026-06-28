@@ -5,52 +5,52 @@
 
   vars:
     project_dir: /opt/predictops
-    github_repo: "https://github.com/DEIN-USERNAME/predictops.git"
+    github_repo: "https://github.com/YOUR-USERNAME/predictops.git"
     ollama_model: "llama3.2:1b"
 
   tasks:
 
     # ── System ────────────────────────────────────────────────────────────
-    - name: System Pakete aktualisieren
+    - name: Update system packages
       apt:
         update_cache: yes
         upgrade: dist
 
-    - name: Benötigte Pakete installieren
+    - name: Install required packages
       apt:
         name: [git, curl, ufw]
         state: present
 
     # ── Firewall ──────────────────────────────────────────────────────────
-    - name: UFW — SSH erlauben
+    - name: UFW — allow SSH
       ufw:
         rule: allow
         port: "22"
 
-    - name: UFW — HTTP erlauben
+    - name: UFW — allow HTTP
       ufw:
         rule: allow
         port: "80"
 
-    - name: UFW — HTTPS erlauben
+    - name: UFW — allow HTTPS
       ufw:
         rule: allow
         port: "443"
 
-    - name: UFW aktivieren
+    - name: Enable UFW
       ufw:
         state: enabled
         policy: deny
 
-    # ── Projekt deployen ──────────────────────────────────────────────────
-    - name: Projektverzeichnis erstellen
+    # ── Deploy project ────────────────────────────────────────────────────
+    - name: Create project directory
       file:
         path: "{{ project_dir }}"
         state: directory
         owner: ubuntu
         group: ubuntu
 
-    - name: Repo klonen / aktualisieren
+    - name: Clone / update repository
       git:
         repo: "{{ github_repo }}"
         dest: "{{ project_dir }}"
@@ -58,34 +58,34 @@
         force: yes
       become_user: ubuntu
 
-    # ── Docker Services starten ───────────────────────────────────────────
-    - name: Docker Images bauen
+    # ── Start Docker services ─────────────────────────────────────────────
+    - name: Build Docker images
       shell: docker compose build
       args:
         chdir: "{{ project_dir }}"
       become_user: ubuntu
 
-    - name: Alle Services starten
+    - name: Start all services
       shell: docker compose up -d
       args:
         chdir: "{{ project_dir }}"
       become_user: ubuntu
 
-    # ── Ollama Modell laden ───────────────────────────────────────────────
-    - name: Warten bis Ollama bereit ist
+    # ── Load Ollama model ─────────────────────────────────────────────────
+    - name: Wait for Ollama to be ready
       wait_for:
         host: localhost
         port: 11434
         delay: 10
         timeout: 120
 
-    - name: LLM Modell herunterladen
+    - name: Download LLM model
       shell: "docker exec predictops-ollama ollama pull {{ ollama_model }}"
       become_user: ubuntu
       ignore_errors: yes
 
     # ── Health Check ──────────────────────────────────────────────────────
-    - name: Chat Interface erreichbar?
+    - name: Check Chat Interface reachable
       uri:
         url: "http://localhost/status"
         status_code: 200
@@ -93,6 +93,6 @@
       retries: 5
       delay: 5
 
-    - name: Deployment Status
+    - name: Deployment status
       debug:
-        msg: "PredictOps läuft! Chat: http://{{ ansible_host }}"
+        msg: "PredictOps is running! Chat: http://{{ ansible_host }}"

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Wird beim ersten EC2-Start ausgeführt
+# Executed on first EC2 boot
 set -e
 
 apt-get update -y
@@ -11,10 +11,10 @@ curl -SL "https://github.com/docker/compose/releases/download/v2.27.0/docker-com
   -o /usr/local/lib/docker/cli-plugins/docker-compose
 chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
-# Docker starten
+# Start Docker
 systemctl enable docker
 systemctl start docker
 usermod -aG docker ubuntu
 
-# Projekt klonen (wird von Ansible später befüllt)
+# Create project directory (populated by Ansible later)
 mkdir -p /opt/predictops

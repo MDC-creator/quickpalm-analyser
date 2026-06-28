@@ -10,9 +10,11 @@ Self-hosted server monitoring with ML anomaly detection, multi-server support, h
 
 - Collects CPU, RAM, Disk and Network metrics every 5 seconds
 - Detects anomalies automatically using Isolation Forest (ML)
-- Predicts when the disk will be full using Linear Regression
+- Forecasts disk full date using Holt-Winters exponential smoothing (more accurate on real-world trends than linear regression)
+- Sends Slack alerts when an anomaly is detected or disk is filling up — with a 15-minute cooldown per server to avoid noise
 - Monitors **multiple remote servers** — add any server by editing one config file
 - AI chat interface — ask questions in plain English, including historical queries ("What happened last hour?", "How was CPU yesterday?")
+- Optional API key auth on the chat endpoint (`CHAT_API_KEY` env var)
 - Pre-built Grafana dashboard with per-server filtering
 - 9 Prometheus alert rules (high CPU, RAM, disk, anomaly, collector down…)
 - One-command deploy to AWS via Terraform + Ansible
@@ -129,6 +131,36 @@ The chat supports **historical queries** — it pulls range data directly from P
 
 ---
 
+## Slack Alerts
+
+Set `SLACK_WEBHOOK_URL` in `docker-compose.yml` to receive alerts when:
+- An anomaly is detected on any server
+- A server's disk is forecast to fill within 7 days
+
+Alerts fire at most once every 15 minutes per server instance to avoid spam.
+
+```yaml
+# docker-compose.yml → ml service
+environment:
+  - SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx/yyy/zzz
+```
+
+---
+
+## Chat API Key
+
+By default the `/chat` endpoint is open. Set `CHAT_API_KEY` to require an `X-API-Key` header:
+
+```yaml
+# docker-compose.yml → chat service
+environment:
+  - CHAT_API_KEY=your-secret-key
+```
+
+Clients then send: `X-API-Key: your-secret-key` with every `/chat` request.
+
+---
+
 ## Multi-Server Support
 
 To monitor additional remote servers:
@@ -185,8 +217,8 @@ Browser → Nginx (:80)
 
 Collector (:8000) ──5s scrape──▶ Prometheus (:9090) ──60s query──▶ ML (:8001)
   psutil metrics                   15-day retention              Isolation Forest
-  per server instance              9 alert rules                 Linear Regression
-  (auto-discovered)                                              per-instance output
+  per server instance              9 alert rules                 Holt-Winters forecast
+  (auto-discovered)                                              Slack alerts
 ```
 
 ### Services

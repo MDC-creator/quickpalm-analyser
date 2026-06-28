@@ -27,14 +27,14 @@ echo ""
 echo "  Server Intelligence Platform — Installer"
 echo ""
 
-# ── Voraussetzungen prüfen ────────────────────────────────────────────────────
+# ── Check prerequisites ───────────────────────────────────────────────────────
 
-info "Prüfe Voraussetzungen..."
+info "Checking prerequisites..."
 
-command -v docker >/dev/null 2>&1 || error "Docker ist nicht installiert. Bitte zuerst Docker installieren: https://docs.docker.com/get-docker/"
+command -v docker >/dev/null 2>&1 || error "Docker is not installed. Please install Docker first: https://docs.docker.com/get-docker/"
 
 if ! docker compose version >/dev/null 2>&1; then
-  info "Docker Compose Plugin installieren..."
+  info "Installing Docker Compose Plugin..."
   mkdir -p ~/.docker/cli-plugins
   curl -SL "https://github.com/docker/compose/releases/download/v2.27.0/docker-compose-linux-x86_64" \
     -o ~/.docker/cli-plugins/docker-compose
@@ -44,33 +44,33 @@ fi
 success "Docker $(docker --version | cut -d' ' -f3 | tr -d ',')"
 success "Docker Compose $(docker compose version --short)"
 
-# ── Ports prüfen ─────────────────────────────────────────────────────────────
+# ── Check ports ──────────────────────────────────────────────────────────────
 
-info "Prüfe Ports..."
+info "Checking ports..."
 for port in 80 3000 8000 8001 8080 9090; do
   if ss -tlnp 2>/dev/null | grep -q ":${port} "; then
-    warn "Port $port ist bereits belegt — könnte Konflikte geben"
+    warn "Port $port is already in use — may cause conflicts"
   fi
 done
 
-# ── Services starten ──────────────────────────────────────────────────────────
+# ── Start services ────────────────────────────────────────────────────────────
 
-info "Baue Docker Images (erste Ausführung: ~3-5 Minuten)..."
+info "Building Docker images (first run: ~3-5 minutes)..."
 docker compose build
 
-info "Starte alle Services..."
+info "Starting all services..."
 docker compose up -d
 
-# ── Warten bis alles bereit ist ───────────────────────────────────────────────
+# ── Wait for services to be ready ─────────────────────────────────────────────
 
-info "Warte bis Services bereit sind..."
+info "Waiting for services to be ready..."
 
 wait_for() {
   local name=$1
   local url=$2
   local max=30
   local count=0
-  printf "  Warte auf %-20s" "$name..."
+  printf "  Waiting for %-20s" "$name..."
   until curl -sf "$url" >/dev/null 2>&1; do
     sleep 2
     count=$((count + 1))
@@ -80,7 +80,7 @@ wait_for() {
     fi
     printf "."
   done
-  echo " bereit"
+  echo " ready"
 }
 
 wait_for "Collector"   "http://localhost:8000/metrics"
@@ -90,23 +90,23 @@ wait_for "ML Service"  "http://localhost:8001/metrics"
 wait_for "Chat"        "http://localhost:8080/status"
 wait_for "Nginx"       "http://localhost"
 
-# ── Ollama Modell prüfen ──────────────────────────────────────────────────────
+# ── Check Ollama model ────────────────────────────────────────────────────────
 
 OLLAMA_MODEL=${OLLAMA_MODEL:-"llama3.2:1b"}
 
 if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
   if ! curl -sf http://localhost:11434/api/tags | grep -q "$OLLAMA_MODEL"; then
-    info "Lade LLM Modell ($OLLAMA_MODEL)..."
-    ollama pull "$OLLAMA_MODEL" || warn "Modell konnte nicht geladen werden. Manuell: ollama pull $OLLAMA_MODEL"
+    info "Loading LLM model ($OLLAMA_MODEL)..."
+    ollama pull "$OLLAMA_MODEL" || warn "Model could not be loaded. Run manually: ollama pull $OLLAMA_MODEL"
   else
-    success "LLM Modell $OLLAMA_MODEL verfügbar"
+    success "LLM model $OLLAMA_MODEL available"
   fi
 else
-  warn "Ollama nicht gefunden. Chat funktioniert ohne LLM-Antworten."
-  warn "Installiere Ollama: https://ollama.ai"
+  warn "Ollama not found. Chat will work without LLM responses."
+  warn "Install Ollama: https://ollama.ai"
 fi
 
-# ── Fertig ────────────────────────────────────────────────────────────────────
+# ── Done ──────────────────────────────────────────────────────────────────────
 
 echo ""
 echo "  ╔══════════════════════════════════════════════════╗"
@@ -119,4 +119,4 @@ echo "  ║  Prometheus:      http://localhost:9090          ║"
 echo "  ╚══════════════════════════════════════════════════╝"
 echo ""
 
-success "Installation abgeschlossen!"
+success "Installation complete!"

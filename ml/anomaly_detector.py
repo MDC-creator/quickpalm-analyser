@@ -1,3 +1,4 @@
+import os
 import time
 import logging
 import requests
@@ -5,15 +6,19 @@ import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
 from sklearn.ensemble import IsolationForest
-from sklearn.linear_model import LinearRegression
+from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from prometheus_client import start_http_server, Gauge, Counter
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger(__name__)
 
-PROMETHEUS_URL = "http://prometheus:9090"
-INTERVAL       = 60
-LOOKBACK_HOURS = 2
+PROMETHEUS_URL    = "http://prometheus:9090"
+SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL", "")
+INTERVAL          = 60
+LOOKBACK_HOURS    = 2
+ALERT_COOLDOWN    = 900  # seconds; prevents repeated Slack pings for the same instance
+
+_last_alerted: dict[str, float] = {}
 
 # ── Output Metrics (labeled per monitored server instance) ────────────────────
 anomaly_score    = Gauge("ml_anomaly_score",     "Isolation Forest score",       ["instance"])
@@ -36,6 +41,19 @@ def get_instances() -> list[str]:
     except Exception as e:
         log.warning(f"Could not discover instances: {e}")
         return []
+
+
+def send_slack(text: str, instance: str) -> None:
+    if not SLACK_WEBHOOK_URL:
+        return
+    now = time.time()
+    if now - _last_alerted.get(instance, 0) < ALERT_COOLDOWN:
+        return
+    try:
+        requests.post(SLACK_WEBHOOK_URL, json={"text": text}, timeout=5)
+        _last_alerted[instance] = now
+    except Exception as e:
+        log.warning(f"Slack notify failed: {e}")
 
 
 def query_range(metric: str, instance: str, hours: int = LOOKBACK_HOURS) -> pd.DataFrame:
@@ -95,6 +113,13 @@ def run_isolation_forest(instance: str) -> None:
         log.info(f"[{instance}] Isolation Forest → {status} (score={latest_score:.4f}, "
                  f"CPU={X[-1][0]:.1f}%, RAM={X[-1][1]:.1f}%)")
 
+        if is_anomaly:
+            send_slack(
+                f":red_circle: *{instance}* — anomaly detected "
+                f"(score={latest_score:.4f}, CPU={X[-1][0]:.1f}%, RAM={X[-1][1]:.1f}%)",
+                instance,
+            )
+
     except Exception as e:
         ml_errors_total.inc()
         log.error(f"[{instance}] Isolation Forest error: {e}")
@@ -109,29 +134,33 @@ def run_disk_forecast(instance: str) -> None:
             disk_full_days.labels(instance=instance).set(-1)
             return
 
-        t0    = df["timestamp"].iloc[0].timestamp()
-        X     = np.array([(ts.timestamp() - t0) for ts in df["timestamp"]]).reshape(-1, 1)
-        y     = df["value"].values
-        model = LinearRegression()
-        model.fit(X, y)
-        slope = model.coef_[0]
+        series  = df["value"].values
+        current = series[-1]
 
-        if slope <= 0:
-            log.info(f"[{instance}] Disk forecast → No upward trend")
-            disk_full_days.labels(instance=instance).set(-1)
-            return
-
-        current = y[-1]
         if current >= 95:
             log.warning(f"[{instance}] Disk already above 95%!")
             disk_full_days.labels(instance=instance).set(0)
+            send_slack(f":rotating_light: *{instance}* disk at {current:.1f}% — critical!", instance)
             return
 
-        seconds_until_full = (95 - model.predict(X[-1:])[0]) / slope
-        days_left = max(0, int(seconds_until_full / 86400))
+        fit      = ExponentialSmoothing(series, trend="add", seasonal=None).fit(optimized=True)
+        forecast = fit.forecast(86400 // 15 * 30)  # 30-day lookahead in 15s steps
+
+        over = np.where(forecast >= 95)[0]
+        if len(over) == 0:
+            disk_full_days.labels(instance=instance).set(-1)
+            log.info(f"[{instance}] Disk forecast → no critical trend within 30 days (current={current:.1f}%)")
+            return
+
+        days_left = max(0, int(over[0] * 15 / 86400))
         disk_full_days.labels(instance=instance).set(days_left)
-        log.info(f"[{instance}] Disk forecast → full in ~{days_left} days "
-                 f"(current={current:.1f}%, trend=+{slope*86400:.3f}%/day)")
+        log.info(f"[{instance}] Disk forecast (HW) → full in ~{days_left} days (current={current:.1f}%)")
+
+        if days_left < 7:
+            send_slack(
+                f":warning: *{instance}* disk forecast: full in ~{days_left} days (currently {current:.1f}%)",
+                instance,
+            )
 
     except Exception as e:
         ml_errors_total.inc()

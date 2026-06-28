@@ -2,17 +2,25 @@ import os
 import re
 import time
 import requests
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException, Security
 from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.security import APIKeyHeader
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 OLLAMA_URL     = os.getenv("OLLAMA_URL",     "http://ollama:11434")
 OLLAMA_MODEL   = os.getenv("OLLAMA_MODEL",   "llama3.2:1b")
+CHAT_API_KEY   = os.getenv("CHAT_API_KEY",   "")
 
 app       = FastAPI(title="QuickPalm Analyser")
 templates = Jinja2Templates(directory="templates")
+
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+def _check_key(key: str | None = Security(_api_key_header)) -> None:
+    if CHAT_API_KEY and key != CHAT_API_KEY:
+        raise HTTPException(status_code=403, detail="Forbidden")
 
 # ── Prometheus helpers ────────────────────────────────────────────────────────
 
@@ -191,7 +199,7 @@ async def status():
 
 
 @app.post("/chat")
-async def chat(req: ChatRequest):
+async def chat(req: ChatRequest, _: None = Depends(_check_key)):
     instance = req.server or None
     lookback = detect_lookback(req.message)
     if lookback:
