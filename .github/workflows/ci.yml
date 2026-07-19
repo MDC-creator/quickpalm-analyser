@@ -46,6 +46,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create .env for CI
+        run: cp .env.example .env
+
       - name: Install Docker Compose
         run: |
           mkdir -p ~/.docker/cli-plugins
