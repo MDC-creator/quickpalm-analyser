@@ -73,13 +73,9 @@ resource "aws_security_group" "predictops" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  # HTTPS
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
+  # 443 is intentionally not opened here: nginx.conf has no TLS listener,
+  # so an open 443 rule would just be unused attack surface. Add it back
+  # once a cert (e.g. via certbot) is actually terminated in nginx.
 
   egress {
     from_port   = 0

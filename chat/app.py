@@ -1,17 +1,22 @@
 import os
 import re
+import secrets
 import time
 import requests
 from fastapi import FastAPI, Request, Depends, HTTPException, Security
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.security import APIKeyHeader
 from fastapi.templating import Jinja2Templates
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://prometheus:9090")
 OLLAMA_URL     = os.getenv("OLLAMA_URL",     "http://ollama:11434")
 OLLAMA_MODEL   = os.getenv("OLLAMA_MODEL",   "llama3.2:1b")
 CHAT_API_KEY   = os.getenv("CHAT_API_KEY",   "")
+
+# Prometheus instance labels are host[:port] — reject anything that could
+# break out of the `{instance="..."}` matcher and inject PromQL.
+_SAFE_INSTANCE = re.compile(r"^[a-zA-Z0-9._:-]+$")
 
 app       = FastAPI(title="QuickPalm Analyser")
 templates = Jinja2Templates(directory="templates")
@@ -19,7 +24,7 @@ templates = Jinja2Templates(directory="templates")
 _api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 def _check_key(key: str | None = Security(_api_key_header)) -> None:
-    if CHAT_API_KEY and key != CHAT_API_KEY:
+    if CHAT_API_KEY and not secrets.compare_digest(key or "", CHAT_API_KEY):
         raise HTTPException(status_code=403, detail="Forbidden")
 
 # ── Prometheus helpers ────────────────────────────────────────────────────────
@@ -175,6 +180,13 @@ class ChatRequest(BaseModel):
     message: str
     server: str | None = None
 
+    @field_validator("server")
+    @classmethod
+    def _validate_server(cls, v: str | None) -> str | None:
+        if v is not None and not _SAFE_INSTANCE.match(v):
+            raise ValueError("Invalid server identifier")
+        return v
+
 
 @app.get("/", response_class=HTMLResponse)
 async def index(request: Request):
@@ -215,14 +227,13 @@ async def chat(req: ChatRequest, _: None = Depends(_check_key)):
         "stream": False,
     }
 
-    def generate():
-        try:
-            resp = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=60)
-            resp.raise_for_status()
-            yield resp.json().get("response", "No response received.")
-        except requests.exceptions.ConnectionError:
-            yield f"Ollama is not reachable. Make sure the model is loaded: ollama pull {OLLAMA_MODEL}"
-        except Exception as e:
-            yield f"Error: {e}"
+    try:
+        resp = requests.post(f"{OLLAMA_URL}/api/generate", json=payload, timeout=60)
+        resp.raise_for_status()
+        answer = resp.json().get("response", "No response received.")
+    except requests.exceptions.ConnectionError:
+        answer = f"Ollama is not reachable. Make sure the model is loaded: ollama pull {OLLAMA_MODEL}"
+    except Exception as e:
+        answer = f"Error: {e}"
 
-    return StreamingResponse(generate(), media_type="text/plain")
+    return PlainTextResponse(answer)

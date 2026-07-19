@@ -19,6 +19,6 @@ variable "key_name" {
 }
 
 variable "allowed_ssh_cidr" {
-  description = "IP address allowed SSH access (your IP + /32)"
-  default     = "0.0.0.0/0"
+  description = "IP address allowed SSH access — set to your own IP + /32, e.g. 203.0.113.4/32. No default: an open 0.0.0.0/0 SSH rule is not safe to ship as a default."
+  type        = string
 }

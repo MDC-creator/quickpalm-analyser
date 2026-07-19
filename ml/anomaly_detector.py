@@ -1,10 +1,11 @@
 import os
+import re
 import time
 import logging
 import requests
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from sklearn.ensemble import IsolationForest
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
 from prometheus_client import start_http_server, Gauge, Counter
@@ -19,6 +20,10 @@ LOOKBACK_HOURS    = 2
 ALERT_COOLDOWN    = 900  # seconds; prevents repeated Slack pings for the same instance
 
 _last_alerted: dict[str, float] = {}
+
+# Instance labels come from Prometheus's own service discovery, but validate
+# defensively before splicing them into a PromQL query string.
+_SAFE_INSTANCE = re.compile(r"^[a-zA-Z0-9._:-]+$")
 
 # ── Output Metrics (labeled per monitored server instance) ────────────────────
 anomaly_score    = Gauge("ml_anomaly_score",     "Isolation Forest score",       ["instance"])
@@ -57,12 +62,16 @@ def send_slack(text: str, instance: str) -> None:
 
 
 def query_range(metric: str, instance: str, hours: int = LOOKBACK_HOURS) -> pd.DataFrame:
-    end   = datetime.utcnow()
+    if not _SAFE_INSTANCE.match(instance):
+        log.warning(f"Rejecting invalid instance label: {instance!r}")
+        return pd.DataFrame()
+
+    end   = datetime.now(timezone.utc)
     start = end - timedelta(hours=hours)
     params = {
         "query": f'{metric}{{instance="{instance}"}}',
-        "start": start.isoformat() + "Z",
-        "end":   end.isoformat() + "Z",
+        "start": start.isoformat(),
+        "end":   end.isoformat(),
         "step":  "15s",
     }
     resp = requests.get(f"{PROMETHEUS_URL}/api/v1/query_range", params=params, timeout=10)

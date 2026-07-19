@@ -44,6 +44,19 @@ fi
 success "Docker $(docker --version | cut -d' ' -f3 | tr -d ',')"
 success "Docker Compose $(docker compose version --short)"
 
+# ── Provision .env ────────────────────────────────────────────────────────────
+
+if [ ! -f .env ]; then
+  info "No .env found — creating one from .env.example..."
+  cp .env.example .env
+  GENERATED_PASSWORD=$(openssl rand -hex 12)
+  sed -i "s/^GRAFANA_ADMIN_PASSWORD=.*/GRAFANA_ADMIN_PASSWORD=${GENERATED_PASSWORD}/" .env
+  success "Generated Grafana admin password (shown below, also saved in .env)"
+  warn "Grafana login: admin / ${GENERATED_PASSWORD}"
+else
+  success ".env already present — using existing configuration"
+fi
+
 # ── Check ports ──────────────────────────────────────────────────────────────
 
 info "Checking ports..."
@@ -114,7 +127,7 @@ echo "  ║         QuickPalm Analyser is running!                        ║"
 echo "  ║                                                  ║"
 echo "  ║  Chat Interface:  http://localhost               ║"
 echo "  ║  Grafana:         http://localhost/grafana       ║"
-echo "  ║                   Login: admin / quickpalm       ║"
+echo "  ║                   Login: admin / <see .env>      ║"
 echo "  ║  Prometheus:      http://localhost:9090          ║"
 echo "  ╚══════════════════════════════════════════════════╝"
 echo ""

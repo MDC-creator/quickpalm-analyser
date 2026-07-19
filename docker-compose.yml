@@ -12,7 +12,7 @@ services:
     container_name: quickpalm-ml
     restart: unless-stopped
     environment:
-      - SLACK_WEBHOOK_URL=
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
     ports:
       - "8001:8001"
     depends_on:
@@ -38,7 +38,7 @@ services:
     container_name: quickpalm-grafana
     restart: unless-stopped
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=quickpalm
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env (see .env.example) before starting}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -55,8 +55,8 @@ services:
     environment:
       - PROMETHEUS_URL=http://prometheus:9090
       - OLLAMA_URL=http://host-gateway:11434
-      - OLLAMA_MODEL=llama3.2:1b
-      - CHAT_API_KEY=
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:1b}
+      - CHAT_API_KEY=${CHAT_API_KEY:-}
     extra_hosts:
       - "host-gateway:host-gateway"
     ports:

@@ -25,7 +25,7 @@ Self-hosted server monitoring with ML anomaly detection, multi-server support, h
 ## Screenshots
 
 > Chat Interface
-![Chat](assets/loclahost_chat.png)
+![Chat](assets/localhost_chat.png)
 
 > Grafana Dashboard
 ![Dashboard](assets/localhost_Grafana.png)
@@ -106,7 +106,7 @@ After `install.sh` finishes:
 | Service | URL | Login |
 |---------|-----|-------|
 | Chat Interface | http://localhost | — |
-| Grafana Dashboard | http://localhost:3000 | `admin` / `quickpalm` |
+| Grafana Dashboard | http://localhost:3000 | `admin` / see `.env` (`GRAFANA_ADMIN_PASSWORD`) |
 | Prometheus | http://localhost:9090 | — |
 
 ---
@@ -131,31 +131,23 @@ The chat supports **historical queries** — it pulls range data directly from P
 
 ---
 
-## Slack Alerts
+## Configuration (.env)
 
-Set `SLACK_WEBHOOK_URL` in `docker-compose.yml` to receive alerts when:
-- An anomaly is detected on any server
-- A server's disk is forecast to fill within 7 days
+All secrets and per-deployment settings live in a `.env` file (gitignored,
+never committed). `install.sh` creates one from `.env.example` on first run
+and generates a random Grafana admin password automatically. To change
+settings later, edit `.env` and run `docker compose up -d` again.
 
-Alerts fire at most once every 15 minutes per server instance to avoid spam.
-
-```yaml
-# docker-compose.yml → ml service
-environment:
-  - SLACK_WEBHOOK_URL=https://hooks.slack.com/services/xxx/yyy/zzz
+```bash
+cp .env.example .env   # if it doesn't exist yet
 ```
 
----
-
-## Chat API Key
-
-By default the `/chat` endpoint is open. Set `CHAT_API_KEY` to require an `X-API-Key` header:
-
-```yaml
-# docker-compose.yml → chat service
-environment:
-  - CHAT_API_KEY=your-secret-key
-```
+| Variable | Purpose |
+|----------|---------|
+| `GRAFANA_ADMIN_PASSWORD` | Required. Grafana admin login password. Compose refuses to start without it. |
+| `CHAT_API_KEY` | Optional. If set, `/chat` requires this value in the `X-API-Key` header. Leave empty only on a trusted network. |
+| `SLACK_WEBHOOK_URL` | Optional. Incoming webhook for anomaly / disk-forecast alerts, fired at most once every 15 minutes per server. |
+| `OLLAMA_MODEL` | Optional. Defaults to `llama3.2:1b`. |
 
 Clients then send: `X-API-Key: your-secret-key` with every `/chat` request.
 
